@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/sarkarshuvojit/striver-sde-anki-deck/utils"
+	"github.com/sarkarshuvojit/striver-sde-anki-deck/pkg/utils"
 )
 
 var (
@@ -42,11 +42,6 @@ func getFilename() string {
 	return fmt.Sprintf("snapshot-%s.json", timestamp)
 }
 
-func errAndExit(err error) {
-	utils.PPrinter.Error(err.Error())
-	os.Exit(1)
-}
-
 func downloadLatestIntoFile(filename string) error {
 	// Make HTTP GET request
 	url := "https://backend.takeuforward.org/api/sheets/single/strivers_sde_sheet"
@@ -76,13 +71,13 @@ func downloadLatestIntoFile(filename string) error {
 
 func main() {
 	if err := setupFlags(); err != nil {
-		errAndExit(err)
+		utils.ErrAndExit(err)
 	}
 	utils.PPrinter.Info(fmt.Sprintf("Creating snapshot in %s", outFolderPath))
 	
 	filename := getFilename()
 	if err := downloadLatestIntoFile(filename); err != nil {
-		errAndExit(err)
+		utils.ErrAndExit(err)
 	}
 }
 
