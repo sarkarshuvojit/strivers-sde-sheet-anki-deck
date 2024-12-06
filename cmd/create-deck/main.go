@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/sarkarshuvojit/striver-sde-anki-deck/pkg/types"
@@ -42,7 +43,33 @@ func loadFile(filePath string) (*types.StriverQuestions, error){
 		return nil, err
 	}
     striverQuestions, err := types.UnmarshalStriverQuestions(fileConent)
+	if err != nil {
+		return nil, err
+	}
 	return &striverQuestions, nil
+}
+
+func createDecksGroupedByHeadStep(snapshot *types.StriverQuestions) error {
+	stepsToSkip := []int{}
+	for _, deckHeading := range (*snapshot).SheetData {
+		if slices.Contains(stepsToSkip, int(deckHeading.StepNo)) {
+			log.Printf("Skipping step no: %d\n", deckHeading.StepNo)
+			continue
+		}
+
+		log.Printf(
+			"Processing step no: %d, title: %s\n", 
+			deckHeading.StepNo, deckHeading.HeadStepNo,
+		)
+
+		for topicIdx, topic := range deckHeading.Topics {
+			log.Printf(
+				"\t%d. Processing topic no: %d, title: %s\n", 
+				topicIdx, topic.SlNoInStep, topic.Title,
+			)
+		}
+	}
+	return nil
 }
 
 func main() {
@@ -54,11 +81,14 @@ func main() {
 		utils.ErrAndExit(err)
 	}
 	log.Printf("Snapshot: %v\n", snapshot)
-	/*
-	topics := getTopics()
-	for topic := range topics {
-		createDeckForTopic(topic)
+
+	if err := createDecksGroupedByHeadStep(snapshot); err != nil {
+		utils.ErrAndExit(err)
 	}
-	*/
+
+	utils.PPrinter.Success(
+		fmt.Sprintf("Decks created successfull at %s", "some/random/folder"),
+	)
 }
+
 
