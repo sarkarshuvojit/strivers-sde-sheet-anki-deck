@@ -69,12 +69,6 @@ func getTags(topic types.Topic) []string {
 }
 
 func getBackBytes(topic types.Topic) []byte {
-	return []byte(fmt.Sprintf(
-		`%s`, topic.Title,
-	))
-}
-
-func getFrontBytes(topic types.Topic) []byte {
 	var youtubeLink string
 	if topic.YtLink != nil {
 		youtubeLink = *topic.YtLink
@@ -83,6 +77,12 @@ func getFrontBytes(topic types.Topic) []byte {
 	}
 	return []byte(fmt.Sprintf(
 		`%s`, youtubeLink,
+	))
+}
+
+func getFrontBytes(topic types.Topic) []byte {
+	return []byte(fmt.Sprintf(
+		`%s`, topic.Title,
 	))
 }
 
@@ -112,7 +112,7 @@ func createDeckForHeading(deckHeading types.SheetDatum) (*types.Deck, error) {
 
 func createDecksGroupedByHeadStep(snapshot *types.StriverQuestions) error {
 	stepsToSkip := []int{}
-	decks := map[string][]*types.Deck{}
+	decks := map[string]*types.Deck{}
 	for _, deckHeading := range (*snapshot).SheetData {
 		if slices.Contains(stepsToSkip, int(deckHeading.StepNo)) {
 			log.Printf("Skipping step no: %d\n", deckHeading.StepNo)
@@ -132,19 +132,12 @@ func createDecksGroupedByHeadStep(snapshot *types.StriverQuestions) error {
 			return err
 		}
 
-		if val, ok := decks[headingKey]; ok {
-			val = append(val, headingDeck)
-			decks[headingKey] = val
-		} else {
-			newDeckList := []*types.Deck{headingDeck}
-			decks[headingKey] = newDeckList
-		}
-
+		decks[headingKey] = headingDeck
 	}
 
 	log.Println("Decks Created:")
-	for deckKey, deckList := range decks {
-		log.Printf("%s => %v", deckKey, len(deckList))
+	for _, deckValue := range decks {
+		log.Printf("%s\n", (*deckValue).Display())
 	}
 	return nil
 }
