@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/csv"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"slices"
@@ -18,6 +20,8 @@ const UNTAGGED = "untagged"
 
 var (
 	souceFilePath string
+	outputDirPath string
+	shouldCreateOutputDir bool
 )
 
 func setupFlags() error {
@@ -27,6 +31,18 @@ func setupFlags() error {
 		"./assets/snapshot-zero.json",
 		"[cmd] --path path-to-snapshot-file.json",
 	)
+	flag.StringVar(
+		&outputDirPath,
+		"output-dir-path",
+		"assets/decks-"+utils.NowInFilesafeFormat(),
+		"[cmd] --output-dir-path assets/decks-today/",
+	)
+	flag.BoolVar(
+		&shouldCreateOutputDir,
+		"create-dir",
+		false,
+		"[cmd] --create-dir",
+	)
 	flag.Parse()
 
 	if !strings.HasSuffix(souceFilePath, ".json") {
@@ -35,6 +51,14 @@ func setupFlags() error {
 
 	if _, err := os.ReadDir(souceFilePath); err == nil {
 		return errors.Join(errors.New(fmt.Sprintf("%s not a valid snapshot", souceFilePath)), err)
+	}
+
+	// TODO: Add additional check to make sure dir is not empty
+	// which can be overridden using --force
+	if !shouldCreateOutputDir {
+		if _, err := os.ReadDir(outputDirPath); err != nil {
+			return errors.Join(errors.New(fmt.Sprintf("%s not a directory", outputDirPath)), err)
+		}
 	}
 
 	return nil
@@ -110,7 +134,7 @@ func createDeckForHeading(deckHeading types.SheetDatum) (*types.Deck, error) {
 }
 
 
-func createDecksGroupedByHeadStep(snapshot *types.StriverQuestions) error {
+func createDecksGroupedByHeadStep(snapshot *types.StriverQuestions) (*map[string]*types.Deck, error) {
 	stepsToSkip := []int{}
 	decks := map[string]*types.Deck{}
 	for _, deckHeading := range (*snapshot).SheetData {
@@ -129,7 +153,7 @@ func createDecksGroupedByHeadStep(snapshot *types.StriverQuestions) error {
 		)
 		headingDeck, err := createDeckForHeading(deckHeading)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		decks[headingKey] = headingDeck
@@ -139,27 +163,81 @@ func createDecksGroupedByHeadStep(snapshot *types.StriverQuestions) error {
 	for _, deckValue := range decks {
 		log.Printf("%s\n", (*deckValue).Display())
 	}
+	return &decks, nil
+}
+
+func writeDeckToDisk(deck *types.Deck) error {
+	filename := fmt.Sprintf(
+		"%s-%s.csv",
+		strings.ReplaceAll(deck.Meta.Title, " ","_"), utils.NowInFilesafeFormat(),
+	)
+	absFilePath := fmt.Sprintf("%s/%s", outputDirPath, filename)
+	
+	headers := []string{"Front", "Back", "Tags"}
+	
+	outputMat := [][]string{
+		headers,
+	}
+
+	for _, item := range deck.Items {
+		outputMat = append(outputMat, []string{
+			string(item.Front), string(item.Back), strings.Join(item.Tags, ","),
+		})
+	}
+
+	outputFile, err := os.Create(absFilePath)
+	if err != nil {
+		return err
+	}
+
+	cw := csv.NewWriter(outputFile)
+	cw.WriteAll(outputMat)
+
+	if err := cw.Error(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-
 func main() {
+	log.SetOutput(io.Discard)
 	if err := setupFlags(); err != nil {
 		utils.ErrAndExit(err)
 	}
+
 	snapshot, err := loadFile(souceFilePath)
 	if err != nil {
 		utils.ErrAndExit(err)
 	}
-	log.Printf("Snapshot: %v\n", snapshot)
 
-	if err := createDecksGroupedByHeadStep(snapshot); err != nil {
+	decks, err := createDecksGroupedByHeadStep(snapshot)
+	if err != nil {
 		utils.ErrAndExit(err)
 	}
 
+	if err := os.Mkdir(outputDirPath, 0777); err != nil {
+		utils.ErrAndExit(err)
+	}
+
+	for deckKey, deck := range *decks {
+		if err := writeDeckToDisk(deck); err != nil {
+			// TODO: if write error break out from loop intead of trying t
+			// to write to an imaginary dir
+			// also validtiy of the dir should already been checked before 
+			// reaching this point
+			log.Println(err)
+			utils.PPrinter.Warning(fmt.Sprintf(
+				"Failed to write to disk: %s", deckKey, 
+			))
+			
+		}
+	}
+
 	utils.PPrinter.Success(
-		fmt.Sprintf("Decks created successfull at %s", "some/random/folder"),
+		fmt.Sprintf("Decks created successfull at %s", outputDirPath),
 	)
 }
+
 
 
