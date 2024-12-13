@@ -11,13 +11,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/sarkarshuvojit/striver-sde-anki-deck/pkg/tmpl"
 	"github.com/sarkarshuvojit/striver-sde-anki-deck/pkg/types"
 	"github.com/sarkarshuvojit/striver-sde-anki-deck/pkg/utils"
 )
 
 const NO_LINK_PROVIDED = "No link provided"
 const UNTAGGED = "untagged"
-
 var (
 	souceFilePath string
 	outputDirPath string
@@ -85,7 +85,10 @@ func getTags(topic types.Topic) []string {
 	if err != nil {
 		return []string{UNTAGGED}
 	}
-	tags := []string{}
+	topicNameEscaped := strings.ReplaceAll(
+		topic.HeadStepNo, " ", "-",
+	)
+	tags := []string{"topic-"+strings.ToLower(topicNameEscaped)}
 	for _, questionTopic := range questionTopics {
 		tags = append(tags, questionTopic.Value)
 	}
@@ -93,20 +96,27 @@ func getTags(topic types.Topic) []string {
 }
 
 func getBackBytes(topic types.Topic) []byte {
-	var youtubeLink string
-	if topic.YtLink != nil {
-		youtubeLink = *topic.YtLink
-	} else {
-		youtubeLink = NO_LINK_PROVIDED
-	}
+	postLink := getOrDefault(topic.PostLink, NO_LINK_PROVIDED)
+	youtubeLink := getOrDefault(topic.YtLink, NO_LINK_PROVIDED)
 	return []byte(fmt.Sprintf(
-		`%s`, youtubeLink,
+		tmpl.BackHTMLTmpl, youtubeLink, postLink,
 	))
 }
 
+func getOrDefault(target *string, _default string) string {
+	if target != nil {
+		return *target
+	} else {
+		return _default
+	}
+}
+
 func getFrontBytes(topic types.Topic) []byte {
+	lcLink := getOrDefault(topic.LcLink, NO_LINK_PROVIDED)
+	gfgLink := getOrDefault(topic.GfgLink, NO_LINK_PROVIDED)
+
 	return []byte(fmt.Sprintf(
-		`%s`, topic.Title,
+		tmpl.FrontHTMLTmpl, topic.Title, lcLink, gfgLink,
 	))
 }
 
@@ -173,15 +183,15 @@ func writeDeckToDisk(deck *types.Deck) error {
 	)
 	absFilePath := fmt.Sprintf("%s/%s", outputDirPath, filename)
 	
-	headers := []string{"Front", "Back", "Tags"}
+	// headers := []string{"Front", "Back", "Tags"}
 	
 	outputMat := [][]string{
-		headers,
+		// headers,
 	}
 
 	for _, item := range deck.Items {
 		outputMat = append(outputMat, []string{
-			string(item.Front), string(item.Back), strings.Join(item.Tags, ","),
+			string(item.Front), string(item.Back), strings.Join(item.Tags, " "),
 		})
 	}
 
