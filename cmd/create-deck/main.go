@@ -29,19 +29,19 @@ func setupFlags() error {
 		&souceFilePath,
 		"path",
 		"./assets/snapshot-zero.json",
-		"[cmd] --path path-to-snapshot-file.json",
+		"Path to the source snapshot JSON file to be processed", 
 	)
 	flag.StringVar(
 		&outputDirPath,
 		"output-dir-path",
 		"assets/decks-"+utils.NowInFilesafeFormat(),
-		"[cmd] --output-dir-path assets/decks-today/",
+		"Destination directory path for output files (defaults to a timestamped folder)", 
 	)
 	flag.BoolVar(
 		&shouldCreateOutputDir,
 		"create-dir",
 		false,
-		"[cmd] --create-dir",
+		"Automatically create the output directory if it does not exist",
 	)
 	flag.Parse()
 
