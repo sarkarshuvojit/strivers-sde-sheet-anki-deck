@@ -99,7 +99,7 @@ func getBackBytes(topic types.Topic) []byte {
 	postLink := getOrDefault(topic.PostLink, NO_LINK_PROVIDED)
 	youtubeLink := getOrDefault(topic.YtLink, NO_LINK_PROVIDED)
 	return []byte(fmt.Sprintf(
-		tmpl.BackHTMLTmpl, youtubeLink, postLink,
+		tmpl.BackHTMLTmpl, postLink, youtubeLink, 
 	))
 }
 
